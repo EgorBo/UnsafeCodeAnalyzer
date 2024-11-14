@@ -243,6 +243,72 @@ internal class UnsafeCodeAnalyzer
                 [
                     "GetUninitializedObject",
                 ],
+            ["Vector64"] =
+                [
+                    "Load",
+                    "LoadUnsafe",
+                    "LoadUnsafe",
+                    "LoadAligned",
+                    "LoadAlignedNonTemporal",
+                    "Store",
+                    "StoreUnsafe",
+                    "StoreUnsafe",
+                    "StoreAligned",
+                    "StoreAlignedNonTemporal",
+                ],
+            ["Vector128"] =
+                [
+                    "Load",
+                    "LoadUnsafe",
+                    "LoadUnsafe",
+                    "LoadAligned",
+                    "LoadAlignedNonTemporal",
+                    "Store",
+                    "StoreUnsafe",
+                    "StoreUnsafe",
+                    "StoreAligned",
+                    "StoreAlignedNonTemporal",
+                ],
+            ["Vector256"] =
+                [
+                    "Load",
+                    "LoadUnsafe",
+                    "LoadUnsafe",
+                    "LoadAligned",
+                    "LoadAlignedNonTemporal",
+                    "Store",
+                    "StoreUnsafe",
+                    "StoreUnsafe",
+                    "StoreAligned",
+                    "StoreAlignedNonTemporal",
+                ],
+            ["Vector512"] =
+                [
+                    "Load",
+                    "LoadUnsafe",
+                    "LoadUnsafe",
+                    "LoadAligned",
+                    "LoadAlignedNonTemporal",
+                    "Store",
+                    "StoreUnsafe",
+                    "StoreUnsafe",
+                    "StoreAligned",
+                    "StoreAlignedNonTemporal",
+                ],
+            ["Vector"] =
+                [
+                    "Load",
+                    "LoadUnsafe",
+                    "LoadUnsafe",
+                    "LoadAligned",
+                    "LoadAlignedNonTemporal",
+                    "Store",
+                    "StoreUnsafe",
+                    "StoreUnsafe",
+                    "StoreAligned",
+                    "StoreAlignedNonTemporal",
+                ],
+            // There are also various %ISA%.Load*, but they're normally replaced with Vector_.Load* cross-platform APIs
         };
 
         // ArrayPool<T>.Shared.Rent
