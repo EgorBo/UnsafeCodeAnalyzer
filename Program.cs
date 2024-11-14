@@ -1,21 +1,13 @@
 ﻿// Single-file testing:
 //
 //var testResults = await UnsafeCodeAnalyzer.AnalyzeCSharpFile(@"C:\prj\Test.cs");
-//Console.WriteLine(testResults.Count(tr => tr.Kind == MemberKind.NotSafeApi));
+//Console.WriteLine(testResults.Count(tr => tr.Kind == MemberKind.UsesUnsafeApis));
 //return;
 
 const string outputReport = @"C:\prj\unsafe_report.csv";
 const string repo = @"C:\prj\runtime";
 
-Console.WriteLine($"\nAnalyzing {repo}...");
-string[] folders =
-    [
-        Path.Combine(repo, "src", "libraries"),
-        Path.Combine(repo, "src", "coreclr", "System.Private.CoreLib", "src", "System"),
-        // NOTE: the path for corelib was changed in 2021
-    ];
-
-MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(folders, 
+MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(repo, 
     csFile => // Should we process this .cs file?
     {
         string[] directories = csFile.Split(Path.DirectorySeparatorChar);
@@ -25,6 +17,18 @@ MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(folders,
             // Ignore files in these directories.
             return false;
         }
+
+        // Only process files in the specified folder paths
+        // since "groupByFunc" below depends on it
+        string[] folders =
+            [
+                Path.Combine(repo, "src", "libraries"),
+                Path.Combine(repo, "src", "coreclr", "System.Private.CoreLib", "src", "System"),
+                // NOTE: the path for corelib was changed in 2021
+            ];
+
+        if (!folders.Any(f => csFile.StartsWith(f, StringComparison.OrdinalIgnoreCase)))
+            return false;
 
         if (csFile.Contains(Path.Combine("System", "Runtime", "Intrinsics")) ||
             csFile.Contains(Path.Combine("System", "Numerics", "Vector")))
@@ -37,13 +41,25 @@ MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(folders,
         return true;
     });
 
-await CsvReportGenerator.Dump(result, outputReport, repo);
+// Generate CSV report
+await CsvReportGenerator.Dump(result, outputReport, groupByFunc: info =>
+    {
+        // No grouping:
+        // return info.File;
 
-int totalMethods                  = result.Count(r => r.Kind is not MemberKind.SafeTrivialProperty);
-int totalMethodsWithPinvokes      = result.Count(r => r.Kind is MemberKind.Pinvoke);
-int totalMethodsWithUnmanagedPtrs = result.Count(r => r.Kind is MemberKind.NotSafeUnmanagedPointers);
-int totalMethodsWithUnsafeApis    = result.Count(r => r.Kind is MemberKind.NotSafeApi);
-int totalUnsafeMethods            = totalMethodsWithPinvokes + totalMethodsWithUnmanagedPtrs + totalMethodsWithUnsafeApis;
+        // Group by 3-level folder (assembly name in case of dotnet/runtime)
+        string file = info.File;
+        string relativePath = Path.GetRelativePath(repo, file);
+        return relativePath.Split(Path.DirectorySeparatorChar).ElementAt(2);
+    });
+
+int totalMethods                  = result.Count(r => r.Kind is not MemberKind.IsSafe_TrivialProperty);
+int totalMethodsWithPinvokes      = result.Count(r => r.Kind is MemberKind.IsPinvoke);
+int totalMethodsWithUnmanagedPtrs = result.Count(r => r.Kind is MemberKind.UsesUnsafeContext);
+int totalMethodsWithUnsafeApis    = result.Count(r => r.Kind is MemberKind.UsesUnsafeApis);
+int totalUnsafeMethods            = totalMethodsWithPinvokes + 
+                                    totalMethodsWithUnmanagedPtrs + 
+                                    totalMethodsWithUnsafeApis;
 
 double unsafeMethodsPercentage    = (double)totalUnsafeMethods / totalMethods * 100;
 

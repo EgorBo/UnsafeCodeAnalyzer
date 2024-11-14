@@ -6,35 +6,38 @@ using System.Text.RegularExpressions;
 
 public enum MemberKind
 {
-    Safe,
-    SafeTrivialProperty, // e.g. auto-properties
-    NotSafeUnmanagedPointers,
-    NotSafeApi,
-    Pinvoke
+    UsesUnsafeContext,
+    UsesUnsafeApis, // Has calls to unsafe APIs, but no unsafe context
+    IsPinvoke,
+    IsSafe,
+    IsSafe_TrivialProperty,// e.g. auto-properties which can be treated as fields
 }
 
 public record MemberSafetyInfo(string File, SyntaxNode Member, MemberKind Kind)
 {
     public bool HasUnsafeCode => Kind is
-        MemberKind.NotSafeUnmanagedPointers or
-        MemberKind.NotSafeApi or
-        MemberKind.Pinvoke;
+        MemberKind.UsesUnsafeContext or
+        MemberKind.UsesUnsafeApis or
+        MemberKind.IsPinvoke;
 }
 
 internal class UnsafeCodeAnalyzer
 {
-    public static async Task<MemberSafetyInfo[]> AnalyzeFolders(string[] folders, Func<string, bool> csFilePredicate)
+    public static async Task<MemberSafetyInfo[]> AnalyzeFolders(string folder, Func<string, bool> csFilePredicate)
     {
         int filesAnalyzed = 0;
-        List<MemberSafetyInfo> results = new();
-        foreach (string folder in folders)
+        List<MemberSafetyInfo> results = [];
+        var allCsFiles = Directory.EnumerateFiles(folder, "*.cs", SearchOption.AllDirectories);
+        await Parallel.ForEachAsync(allCsFiles, async (file, _) =>
         {
-            foreach (string file in Directory.GetFiles(folder, "*.cs", SearchOption.AllDirectories).Where(csFilePredicate))
+            if (csFilePredicate(file))
             {
-                Console.Write($"\r*.cs files analyzed: {filesAnalyzed++}\r");
-                results.AddRange(await AnalyzeCSharpFile(file));
+                MemberSafetyInfo[] result = await AnalyzeCSharpFile(file);
+                Console.Write($"\r*.cs files analyzed: {Interlocked.Increment(ref filesAnalyzed)}\r");
+                lock (results)
+                    results.AddRange(result);
             }
-        }
+        });
         return results.ToArray();
     }
 
@@ -65,7 +68,7 @@ internal class UnsafeCodeAnalyzer
             {
                 // UnmanagedCallersOnly ?
                 // UnmanagedFunctionPointer ?
-                return MemberKind.Pinvoke;
+                return MemberKind.IsPinvoke;
             }
         }
 
@@ -78,7 +81,7 @@ internal class UnsafeCodeAnalyzer
             {
                 case ClassDeclarationSyntax cls when cls.Modifiers.Any(SyntaxKind.UnsafeKeyword):
                 case StructDeclarationSyntax strct when strct.Modifiers.Any(SyntaxKind.UnsafeKeyword):
-                    return MemberKind.NotSafeUnmanagedPointers;
+                    return MemberKind.UsesUnsafeContext;
                 default:
                     parent = parent.Parent;
                     break;
@@ -91,7 +94,7 @@ internal class UnsafeCodeAnalyzer
             case MethodDeclarationSyntax methDecl when methDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
             case PropertyDeclarationSyntax propDecl when propDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
             case ConstructorDeclarationSyntax ctorDecl when ctorDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
-                return MemberKind.NotSafeUnmanagedPointers;
+                return MemberKind.UsesUnsafeContext;
         }
 
         // Check for unsafe blocks in the body
@@ -101,7 +104,7 @@ internal class UnsafeCodeAnalyzer
         {
             // unsafe {} block, but haven't seen any pointers or API calls
             // likely some 'Foo(myIntPtr.ToPointer());' stuff
-            return MemberKind.NotSafeUnmanagedPointers;
+            return MemberKind.UsesUnsafeContext;
         }
 
 
@@ -110,7 +113,7 @@ internal class UnsafeCodeAnalyzer
             .OfType<PointerTypeSyntax>()
             .Any())
         {
-            return MemberKind.NotSafeUnmanagedPointers;
+            return MemberKind.UsesUnsafeContext;
         }
 
         // Check for address-of expressions (e.g., &variable)
@@ -118,7 +121,7 @@ internal class UnsafeCodeAnalyzer
             .OfType<PrefixUnaryExpressionSyntax>()
             .Any(expr => expr.IsKind(SyntaxKind.AddressOfExpression)))
         {
-            return MemberKind.NotSafeUnmanagedPointers;
+            return MemberKind.UsesUnsafeContext;
         }
 
         // Check for unsafe API calls (e.g., Unsafe.As)
@@ -126,7 +129,7 @@ internal class UnsafeCodeAnalyzer
             .OfType<InvocationExpressionSyntax>()
             .Any(IsUnsafeInvocation))
         {
-            return MemberKind.NotSafeApi;
+            return MemberKind.UsesUnsafeApis;
         }
 
         // Ignore simple auto-properties (unless they have an unsafe return type)
@@ -158,11 +161,11 @@ internal class UnsafeCodeAnalyzer
                 (hasAutoSetAccessor && !hasGetter) ||
                 (!hasSetter && !hasGetter))
             {
-                return MemberKind.SafeTrivialProperty;
+                return MemberKind.IsSafe_TrivialProperty;
             }
         }
 
-        return MemberKind.Safe;
+        return MemberKind.IsSafe;
     }
 
     private static bool IsUnsafeInvocation(InvocationExpressionSyntax invocation)
@@ -299,22 +302,16 @@ internal class UnsafeCodeAnalyzer
 
 public static class CsvReportGenerator
 {
-    public static async Task Dump(MemberSafetyInfo[] members, string outputReport, string rootFolder)
+    public static async Task Dump(MemberSafetyInfo[] members, string outputReport, Func<MemberSafetyInfo, string> groupByFunc)
     {
-        await File.WriteAllTextAsync(outputReport, "Assembly, Methods, Methods with unsafe code, P/Invokes, With unsafe context, With Unsafe API calls\n");
-        foreach (var group in members.GroupBy(m =>
-                 {
-                     // Group by 3-level folder (assembly name in case of dotnet/runtime)
-                     string file = m.File;
-                     string relativePath = Path.GetRelativePath(rootFolder, file);
-                     return relativePath.Split(Path.DirectorySeparatorChar).ElementAt(2);
-                 }))
+        await File.WriteAllTextAsync(outputReport, "Assembly, Methods, P/Invokes, With unsafe context, With Unsafe API calls\n");
+        foreach (var group in members.GroupBy(groupByFunc))
         {
             // We exclude trivial properties from the total count, we treat them as fields
-            int totalMethods = group.Count(r => r.Kind is not MemberKind.SafeTrivialProperty);
-            int totalMethodsWithPinvokes = group.Count(r => r.Kind is MemberKind.Pinvoke);
-            int totalMethodsWithUnmanagedPtrs = group.Count(r => r.Kind is MemberKind.NotSafeUnmanagedPointers);
-            int totalMethodsWithUnsafeApis = group.Count(r => r.Kind is MemberKind.NotSafeApi);
+            int totalMethods = group.Count(r => r.Kind is not MemberKind.IsSafe_TrivialProperty);
+            int totalMethodsWithPinvokes = group.Count(r => r.Kind is MemberKind.IsPinvoke);
+            int totalMethodsWithUnmanagedPtrs = group.Count(r => r.Kind is MemberKind.UsesUnsafeContext);
+            int totalMethodsWithUnsafeApis = group.Count(r => r.Kind is MemberKind.UsesUnsafeApis);
 
             await File.AppendAllTextAsync(outputReport,
                 $"\"{group.Key}\", " +
