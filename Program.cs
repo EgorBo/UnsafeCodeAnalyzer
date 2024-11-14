@@ -47,7 +47,11 @@ await CsvReportGenerator.Dump(result, outputReport, groupByFunc: info =>
         // No grouping:
         // return info.File;
 
-        // Group by 3-level folder (assembly name in case of dotnet/runtime)
+        // Group by 3-level folder (assembly name in case of dotnet/runtime), e.g.:
+        //
+        //   $repo/src/libraries/System.Console/src/System/Console.cs
+        //   $repo/src/coreclr/System.Private.CoreLib/src/System/Boolean.cs
+        //                       ^
         string file = info.File;
         string relativePath = Path.GetRelativePath(repo, file);
         return relativePath.Split(Path.DirectorySeparatorChar).ElementAt(2);
