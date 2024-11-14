@@ -9,7 +9,10 @@
 // Usage: UnsafeCodeAnalyzer.exe [repo] [outputReport] [-v]
 //
 // Default values:
-bool verbose = false;
+
+using System.Diagnostics;
+
+bool verbose = true;
 string outputReport = @"C:\prj\unsafe_report.csv";
 string repo = @"C:\prj\runtime-2024";
 if (args.Length > 0)
@@ -17,7 +20,7 @@ if (args.Length > 0)
 if (args.Length > 1)
     outputReport = args[1];
 if (args.Length > 2)
-    verbose = args[2] == "-v";
+    verbose = args[2] != "-quite";
 
 // *.cs file predicate: should we process this file?
 bool ShouldProcessCsFile(string csFile)
@@ -49,7 +52,11 @@ bool ShouldProcessCsFile(string csFile)
     return true;
 }
 
+var sw = Stopwatch.StartNew();
 MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(repo, ShouldProcessCsFile, verbose);
+sw.Stop();
+if (verbose)
+    Console.WriteLine($"Analysis took {sw.Elapsed.TotalSeconds:F2} seconds");
 
 // Generate CSV report
 await CsvReportGenerator.Dump(result, outputReport, groupByFunc: info =>
