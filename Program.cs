@@ -38,5 +38,16 @@ MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(folders, csF
 });
 
 await CsvReportGenerator.Dump(result, outputReport, repo);
+
+int totalMethods                  = result.Count(r => r.Kind is not MemberKind.SafeTrivialProperty);
+int totalMethodsWithPinvokes      = result.Count(r => r.Kind is MemberKind.Pinvoke);
+int totalMethodsWithUnmanagedPtrs = result.Count(r => r.Kind is MemberKind.NotSafeUnmanagedPointers);
+int totalMethodsWithUnsafeApis    = result.Count(r => r.Kind is MemberKind.NotSafeApi);
+int totalUnsafeMethods            = totalMethodsWithPinvokes + totalMethodsWithUnmanagedPtrs + totalMethodsWithUnsafeApis;
+
+double unsafeMethodsPercentage = (double)totalUnsafeMethods / totalMethods * 100;
+
+Console.WriteLine($"\n\nTotal methods: {totalMethods}, " +
+                  $"Total unsafe methods: {totalUnsafeMethods} ({unsafeMethodsPercentage:F2}%)");
 Console.WriteLine("\n\nAll done! Press any key to exit.");
 Console.ReadKey();
