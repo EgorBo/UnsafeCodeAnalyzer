@@ -15,27 +15,27 @@ string[] folders =
         // NOTE: the path for corelib was changed in 2021
     ];
 
-MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(folders, csFile =>
-{
-    // Should we process this .cs file?
-    string[] directories = csFile.Split(Path.DirectorySeparatorChar);
-    if (directories.Any(directoryName => directoryName is
+MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(folders, 
+    csFile => // Should we process this .cs file?
+    {
+        string[] directories = csFile.Split(Path.DirectorySeparatorChar);
+        if (directories.Any(directoryName => directoryName is
             "test" or "tests" or "ref" or "Fuzzing" or "tools"))
-    {
-        // Ignore files in these directories.
-        return false;
-    }
+        {
+            // Ignore files in these directories.
+            return false;
+        }
 
-    if (csFile.Contains(Path.Combine("System", "Runtime", "Intrinsics")) ||
-        csFile.Contains(Path.Combine("System", "Numerics", "Vector")))
-    {
-        // Ignore files in System.Runtime.Intrinsics/SIMD stuff,
-        // Otherwise we're going to see dramatic increase in the number of unsafe methods
-        // because of AVX512 and SVE (many of them have unsafe signatures)
-        return false;
-    }
-    return true;
-});
+        if (csFile.Contains(Path.Combine("System", "Runtime", "Intrinsics")) ||
+            csFile.Contains(Path.Combine("System", "Numerics", "Vector")))
+        {
+            // Ignore files in System.Runtime.Intrinsics/SIMD stuff,
+            // Otherwise we're going to see dramatic increase in the number of unsafe methods
+            // because of AVX512 and SVE (many of them have unsafe signatures)
+            return false;
+        }
+        return true;
+    });
 
 await CsvReportGenerator.Dump(result, outputReport, repo);
 
@@ -45,7 +45,7 @@ int totalMethodsWithUnmanagedPtrs = result.Count(r => r.Kind is MemberKind.NotSa
 int totalMethodsWithUnsafeApis    = result.Count(r => r.Kind is MemberKind.NotSafeApi);
 int totalUnsafeMethods            = totalMethodsWithPinvokes + totalMethodsWithUnmanagedPtrs + totalMethodsWithUnsafeApis;
 
-double unsafeMethodsPercentage = (double)totalUnsafeMethods / totalMethods * 100;
+double unsafeMethodsPercentage    = (double)totalUnsafeMethods / totalMethods * 100;
 
 Console.WriteLine($"\n\nTotal methods: {totalMethods}, " +
                   $"Total unsafe methods: {totalUnsafeMethods} ({unsafeMethodsPercentage:F2}%)");
