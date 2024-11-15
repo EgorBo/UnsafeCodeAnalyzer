@@ -72,7 +72,7 @@ if (verbose)
         //   $repo/src/libraries/System.Console/src/System/Console.cs
         //   $repo/src/coreclr/System.Private.CoreLib/src/System/Boolean.cs
         //                       ^
-        return relativePath.Split(Path.DirectorySeparatorChar).ElementAt(2);
+        //return relativePath.Split(Path.DirectorySeparatorChar).ElementAt(2);
     });
 
 int totalMethods                  = result.Count(r => r.Kind is not MemberKind.IsSafe_TrivialProperty);
