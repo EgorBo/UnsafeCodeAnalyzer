@@ -368,9 +368,9 @@ internal class UnsafeCodeAnalyzer
     }
 }
 
-public static class CsvReportGenerator
+public static class ReportGenerator
 {
-    public static async Task Dump(MemberSafetyInfo[] members, string outputReport, Func<MemberSafetyInfo, string> groupByFunc)
+    public static async Task DumpCsv(MemberSafetyInfo[] members, string outputReport, Func<MemberSafetyInfo, string> groupByFunc)
     {
         try
         {
@@ -389,6 +389,34 @@ public static class CsvReportGenerator
                     $"{totalMethodsWithPinvokes}, " +
                     $"{totalMethodsWithUnmanagedPtrs}, " +
                     $"{totalMethodsWithUnsafeApis}\n");
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+    }
+
+    public static async Task DumpMarkdown(MemberSafetyInfo[] members, string outputReport, Func<MemberSafetyInfo, string> groupByFunc)
+    {
+        try
+        {
+            await File.WriteAllTextAsync(outputReport, "| Assembly | Total methods | Are P/Invokes | Contain 'unsafe' context | Contain Unsafe API calls |\n");
+            await File.AppendAllTextAsync(outputReport, "| ---| ---| ---| ---| ---|\n");
+            foreach (var group in members.GroupBy(groupByFunc))
+            {
+                // We exclude trivial properties from the total count, we treat them as fields
+                int totalMethods = group.Count(r => r.Kind is not MemberKind.IsSafe_TrivialProperty);
+                int totalMethodsWithPinvokes = group.Count(r => r.Kind is MemberKind.IsPinvoke);
+                int totalMethodsWithUnmanagedPtrs = group.Count(r => r.Kind is MemberKind.UsesUnsafeContext);
+                int totalMethodsWithUnsafeApis = group.Count(r => r.Kind is MemberKind.UsesUnsafeApis);
+
+                await File.AppendAllTextAsync(outputReport,
+                    $"| {group.Key} | " +
+                    $"{totalMethods} | " +
+                    $"{totalMethodsWithPinvokes} | " +
+                    $"{totalMethodsWithUnmanagedPtrs} | " +
+                    $"{totalMethodsWithUnsafeApis} |\n");
             }
         }
         catch (Exception e)

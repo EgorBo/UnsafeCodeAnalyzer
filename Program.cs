@@ -12,7 +12,7 @@
 //
 // Default values:
 bool verbose = true;
-string outputReport = @"C:\prj\unsafe_report.csv";
+string outputReport = @"C:\prj\unsafe_report.md";
 string repo = @"C:\prj\runtime-2024";
 
 if (args.Length > 0) repo = args[0];
@@ -55,19 +55,23 @@ sw.Stop();
 if (verbose)
     Console.WriteLine($"Analysis took {sw.Elapsed.TotalSeconds:F2} seconds");
 
-// Generate CSV report
-await CsvReportGenerator.Dump(result, outputReport, groupByFunc: info =>
+    // Generate CSV or MD report
+    await ReportGenerator.DumpMarkdown(result, outputReport, groupByFunc: info =>
     {
+        string file = info.File;
+        string relativePath = Path.GetRelativePath(repo, file);
+
         // No grouping:
-        // return info.File;
+        return "All";
+
+        // Group by file:
+        // return relativePath;
 
         // Group by 3-level folder (assembly name in case of dotnet/runtime), e.g.:
         //
         //   $repo/src/libraries/System.Console/src/System/Console.cs
         //   $repo/src/coreclr/System.Private.CoreLib/src/System/Boolean.cs
         //                       ^
-        string file = info.File;
-        string relativePath = Path.GetRelativePath(repo, file);
         return relativePath.Split(Path.DirectorySeparatorChar).ElementAt(2);
     });
 
@@ -85,4 +89,4 @@ Console.WriteLine($"Total methods: {totalMethods}, among them:\n" +
                   $" - Total methods with non-safe code: {totalUnsafeMethods} ({unsafeMethodsPercentage:F2}%)\n");
 
 if (verbose)
-    Console.WriteLine($"CSV report is saved to {outputReport}");
+    Console.WriteLine($"Report is saved to {outputReport}");
