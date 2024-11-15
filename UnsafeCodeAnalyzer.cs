@@ -2,7 +2,9 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis;
-using System.Text.RegularExpressions;
+using System.Buffers;
+using System.Reflection;
+using System.Runtime.InteropServices;
 
 public enum MemberKind
 {
@@ -170,10 +172,10 @@ internal class UnsafeCodeAnalyzer
         return MemberKind.IsSafe;
     }
 
-    private static bool IsUnsafeInvocation(InvocationExpressionSyntax invocation)
-    {
-        string input = invocation.ToString();
+    private static readonly SearchValues<string> s_unsafeApiNames = CreateUnsafeApiNames();
 
+    private static SearchValues<string> CreateUnsafeApiNames()
+    {
         Dictionary<string, List<string>> unsafeApis = new()
         {
             // The list of APIs is based on https://github.com/dotnet/runtime/issues/41418
@@ -235,7 +237,7 @@ internal class UnsafeCodeAnalyzer
                 ],
             ["NativeLibrary"] =
                 [
-                    "*", // All methods
+                    .. typeof(NativeLibrary).GetMethods(BindingFlags.Static | BindingFlags.Public).Select(m => m.Name),
                 ],
             ["GC"] =
                 [
@@ -313,6 +315,20 @@ internal class UnsafeCodeAnalyzer
             // There are also various %ISA%.Load*, but they're normally replaced with Vector_.Load* cross-platform APIs
         };
 
+        return SearchValues.Create(
+            unsafeApis
+                .SelectMany(group => group.Value.Select(methodName => $"{group.Key}.{methodName}"))
+                .ToArray(),
+            StringComparison.Ordinal);
+    }
+
+    private static bool IsUnsafeInvocation(InvocationExpressionSyntax invocation)
+    {
+        if (invocation.ToString().AsSpan().ContainsAny(s_unsafeApiNames))
+        {
+            return true;
+        }
+
         // ArrayPool<T>.Shared.Rent
         // ArrayPool<T>.Shared.Return
         // MemoryPool<T>.Shared.Rent
@@ -331,40 +347,7 @@ internal class UnsafeCodeAnalyzer
             return true;
         }
 
-        foreach ((string unsafeApiClass, List<string> unsafeApiMembers) in unsafeApis)
-        {
-            foreach (string unsafeApiMember in unsafeApiMembers)
-            {
-                if (IsStaticMethod(input, unsafeApiClass, unsafeApiMember))
-                {
-                    return true;
-                }
-            }
-        }
         return false;
-
-
-        static bool IsStaticMethod(string input, string className, string methodName)
-        {
-            // Means all methods in the class
-            if (methodName == "*")
-            {
-                // Class.*
-                // Namespace.Class.*
-                return Regex.IsMatch(input, $@"(?:\b\w+\.)?{className}\.");
-            }
-            // Class.MethodName
-            if (input.StartsWith(className + "." + methodName))
-            {
-                return true;
-            }
-            // Namespace.Class.MethodName
-            if (input.Contains("." + className + "." + methodName))
-            {
-                return true;
-            }
-            return false;
-        }
     }
 }
 
