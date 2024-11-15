@@ -1,4 +1,6 @@
-﻿// Single-file testing:
+﻿using System.Diagnostics;
+
+// Single-file testing:
 //
 //var testResults = await UnsafeCodeAnalyzer.AnalyzeCSharpFile(@"C:\prj\Test.cs");
 //Console.WriteLine(testResults.Count(tr => tr.Kind == MemberKind.UsesUnsafeApis));
@@ -9,18 +11,13 @@
 // Usage: UnsafeCodeAnalyzer.exe [repo] [outputReport] [-v]
 //
 // Default values:
-
-using System.Diagnostics;
-
 bool verbose = true;
 string outputReport = @"C:\prj\unsafe_report.csv";
 string repo = @"C:\prj\runtime-2024";
-if (args.Length > 0)
-    repo = args[0];
-if (args.Length > 1)
-    outputReport = args[1];
-if (args.Length > 2)
-    verbose = args[2] != "-quite";
+
+if (args.Length > 0) repo = args[0];
+if (args.Length > 1) outputReport = args[1];
+if (args.Length > 2) verbose = args[2] != "-quite";
 
 // *.cs file predicate: should we process this file?
 bool ShouldProcessCsFile(string csFile)
@@ -39,8 +36,8 @@ bool ShouldProcessCsFile(string csFile)
         Path.Combine(repo, "src", "libraries"), Path.Combine(repo, "src", "coreclr", "System.Private.CoreLib", "src", "System"),
         // NOTE: the path for corelib was changed in 2021
     ];
-
-    if (!allowListFolders.Any(f => csFile.StartsWith(f, StringComparison.OrdinalIgnoreCase))) return false;
+    if (!allowListFolders.Any(f => csFile.StartsWith(f, StringComparison.OrdinalIgnoreCase))) 
+        return false;
 
     if (csFile.Contains(Path.Combine("System", "Runtime", "Intrinsics")) || csFile.Contains(Path.Combine("System", "Numerics", "Vector")))
     {
@@ -82,7 +79,10 @@ int totalUnsafeMethods            = result.Count(r => r.HasUnsafeCode);
 double unsafeMethodsPercentage    = (double)totalUnsafeMethods / totalMethods * 100;
 
 Console.WriteLine($"Total methods: {totalMethods}, among them:\n" +
-                  $"- P/Invokes: {totalMethodsWithPinvokes}\n" +
-                  $"- With 'unsafe' context: {totalMethodsWithUnmanagedPtrs}\n" +
-                  $"- With unsafe APIs: {totalMethodsWithUnsafeApis}\n" +
-                  $"- Total methods with non-safe code: {totalUnsafeMethods} ({unsafeMethodsPercentage:F2}%)\n");
+                  $" - P/Invokes: {totalMethodsWithPinvokes}\n" +
+                  $" - With 'unsafe' context: {totalMethodsWithUnmanagedPtrs}\n" +
+                  $" - With unsafe APIs in safe context: {totalMethodsWithUnsafeApis}\n" +
+                  $" - Total methods with non-safe code: {totalUnsafeMethods} ({unsafeMethodsPercentage:F2}%)\n");
+
+if (verbose)
+    Console.WriteLine($"CSV report is saved to {outputReport}");
