@@ -401,7 +401,7 @@ public static class ReportGenerator
     {
         try
         {
-            await File.WriteAllTextAsync(outputReport, "| Assembly | Total<br/>methods | P/Invokes | Contain 'unsafe'<br/>context | Contain Unsafe<br/>API calls |\n");
+            await File.WriteAllTextAsync(outputReport, "| Assembly | Total<br/>methods | P/Invokes | Methods with<br/>'unsafe' context | Methods with<br/>Unsafe API calls |\n");
             await File.AppendAllTextAsync(outputReport, "| ---| ---| ---| ---| ---|\n");
 
             var groups = members
@@ -410,7 +410,7 @@ public static class ReportGenerator
                 .ToArray();
 
             // Show only top 5 groups and merge the rest into "Other" group
-            const int significantGroupsCount = 10;
+            const int significantGroupsCount = 8;
             var significantGroups = groups.Take(significantGroupsCount);
             var otherGroups = groups.Skip(significantGroupsCount);
 
