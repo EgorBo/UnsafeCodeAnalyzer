@@ -172,9 +172,10 @@ internal class UnsafeCodeAnalyzer
         return MemberKind.IsSafe;
     }
 
-    private static readonly SearchValues<string> s_unsafeApiNames = CreateUnsafeApiNames();
+    private static readonly string[] s_unsafeApiNames = CreateUnsafeApiNames();
+    private static readonly SearchValues<string> s_unsafeApiNamesSV = SearchValues.Create(s_unsafeApiNames, StringComparison.Ordinal);
 
-    private static SearchValues<string> CreateUnsafeApiNames()
+    private static string[] CreateUnsafeApiNames()
     {
         Dictionary<string, List<string>> unsafeApis = new()
         {
@@ -315,16 +316,21 @@ internal class UnsafeCodeAnalyzer
             // There are also various %ISA%.Load*, but they're normally replaced with Vector_.Load* cross-platform APIs
         };
 
-        return SearchValues.Create(
-            unsafeApis
-                .SelectMany(group => group.Value.Select(methodName => $"{group.Key}.{methodName}"))
-                .ToArray(),
-            StringComparison.Ordinal);
+        return unsafeApis
+            .SelectMany(group => group.Value.Select(methodName => $"{group.Key}.{methodName}"))
+            .ToArray();
     }
 
     private static bool IsUnsafeInvocation(InvocationExpressionSyntax invocation)
     {
-        if (invocation.ToString().AsSpan().ContainsAny(s_unsafeApiNames))
+        if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
+        {
+            return false;
+        }
+
+        string source = memberAccess.ToString();
+
+        if (source.AsSpan().ContainsAny(s_unsafeApiNamesSV) && s_unsafeApiNames.Any(source.StartsWith))
         {
             return true;
         }
@@ -333,7 +339,7 @@ internal class UnsafeCodeAnalyzer
         // ArrayPool<T>.Shared.Return
         // MemoryPool<T>.Shared.Rent
         // MemoryPool<T>.Shared.Return
-        if (invocation.Expression
+        if (memberAccess
             is MemberAccessExpressionSyntax
             {
                 Name.Identifier.Text: "Rent" or "Return",
