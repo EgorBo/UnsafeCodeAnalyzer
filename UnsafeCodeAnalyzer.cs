@@ -401,11 +401,22 @@ public static class ReportGenerator
     {
         try
         {
-            await File.WriteAllTextAsync(outputReport, "| Assembly | Total methods | Are P/Invokes | Contain 'unsafe' context | Contain Unsafe API calls |\n");
+            await File.WriteAllTextAsync(outputReport, "| Assembly | Total<br/>methods | P/Invokes | Contain 'unsafe'<br/>context | Contain Unsafe<br/>API calls |\n");
             await File.AppendAllTextAsync(outputReport, "| ---| ---| ---| ---| ---|\n");
-            foreach (var group in members.GroupBy(groupByFunc))
+
+            var groups = members
+                .GroupBy(groupByFunc)
+                .OrderByDescending(g => g.Count(i => i.HasUnsafeCode))
+                .ToArray();
+
+            // Show only top 5 groups and merge the rest into "Other" group
+            const int significantGroupsCount = 10;
+            var significantGroups = groups.Take(significantGroupsCount);
+            var otherGroups = groups.Skip(significantGroupsCount);
+
+            // Add significant groups
+            foreach (var group in significantGroups)
             {
-                // We exclude trivial properties from the total count, we treat them as fields
                 int totalMethods = group.Count(r => r.Kind is not MemberKind.IsSafe_TrivialProperty);
                 int totalMethodsWithPinvokes = group.Count(r => r.Kind is MemberKind.IsPinvoke);
                 int totalMethodsWithUnmanagedPtrs = group.Count(r => r.Kind is MemberKind.UsesUnsafeContext);
@@ -418,6 +429,33 @@ public static class ReportGenerator
                     $"{totalMethodsWithUnmanagedPtrs} | " +
                     $"{totalMethodsWithUnsafeApis} |\n");
             }
+
+            // Add "Other" group
+            if (otherGroups.Any())
+            {
+                int totalMethods = otherGroups.Sum(g => g.Count(r => r.Kind is not MemberKind.IsSafe_TrivialProperty));
+                int totalMethodsWithPinvokes = otherGroups.Sum(g => g.Count(r => r.Kind is MemberKind.IsPinvoke));
+                int totalMethodsWithUnmanagedPtrs = otherGroups.Sum(g => g.Count(r => r.Kind is MemberKind.UsesUnsafeContext));
+                int totalMethodsWithUnsafeApis = otherGroups.Sum(g => g.Count(r => r.Kind is MemberKind.UsesUnsafeApis));
+                await File.AppendAllTextAsync(outputReport,
+                    $"| *Other* | " +
+                    $"{totalMethods} | " +
+                    $"{totalMethodsWithPinvokes} | " +
+                    $"{totalMethodsWithUnmanagedPtrs} | " +
+                    $"{totalMethodsWithUnsafeApis} |\n");
+            }
+
+            // Grand total
+            int grandTotalMethods = members.Count(r => r.Kind is not MemberKind.IsSafe_TrivialProperty);
+            int grandTotalMethodsWithPinvokes = members.Count(r => r.Kind is MemberKind.IsPinvoke);
+            int grandTotalMethodsWithUnmanagedPtrs = members.Count(r => r.Kind is MemberKind.UsesUnsafeContext);
+            int grandTotalMethodsWithUnsafeApis = members.Count(r => r.Kind is MemberKind.UsesUnsafeApis);
+            await File.AppendAllTextAsync(outputReport,
+                $"| **Total** | " +
+                $"**{grandTotalMethods}** | " +
+                $"**{grandTotalMethodsWithPinvokes}** | " +
+                $"**{grandTotalMethodsWithUnmanagedPtrs}** | " +
+                $"**{grandTotalMethodsWithUnsafeApis}** |\n");
         }
         catch (Exception e)
         {

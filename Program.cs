@@ -62,7 +62,7 @@ if (verbose)
         string relativePath = Path.GetRelativePath(repo, file);
 
         // No grouping:
-        return "All";
+        //return "All";
 
         // Group by file:
         // return relativePath;
@@ -72,7 +72,7 @@ if (verbose)
         //   $repo/src/libraries/System.Console/src/System/Console.cs
         //   $repo/src/coreclr/System.Private.CoreLib/src/System/Boolean.cs
         //                       ^
-        //return relativePath.Split(Path.DirectorySeparatorChar).ElementAt(2);
+        return relativePath.Split(Path.DirectorySeparatorChar).ElementAt(2);
     });
 
 int totalMethods                  = result.Count(r => r.Kind is not MemberKind.IsSafe_TrivialProperty);
