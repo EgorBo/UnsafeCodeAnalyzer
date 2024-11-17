@@ -12,7 +12,7 @@ public class Program
     public static async Task<int> Main(
         // CLI Args via System.CommandLine.DragonFruit 
         string rootDir                = @"C:\prj\runtime-2024", 
-        string outputReport           = @"C:\prj\runtime-2024.md", // can be also .csv
+        string outputReport           = @"C:\prj\runtime-2024.csv", // can be also .csv
         ReportGroupByKind groupByKind = ReportGroupByKind.AssemblyName)
     {
         if (string.IsNullOrWhiteSpace(rootDir))
@@ -41,12 +41,21 @@ public class Program
         return 0;
     }
 
-
     // *.cs file predicate: should we process this file?
     private static bool ShouldProcessCsFile(string csFile)
     {
         if (csFile.Split(Path.DirectorySeparatorChar)
-            .Any(directoryName => directoryName is "test" or "tests" or "ref" or "Fuzzing" or "tools"))
+            .Any(directoryName => directoryName is 
+                "test" or 
+                "tests" or 
+                "ref" or
+                "docs" or
+                "installer" or
+                "workloads" or
+                "tasks" or
+                "samples" or
+                "Fuzzing" or 
+                "tools"))
         {
             // Ignore files in these directories.
             return false;
@@ -76,7 +85,8 @@ public class Program
         // 3. Try to extract assembly name from the path:
         Debug.Assert(kind == ReportGroupByKind.AssemblyName);
         if (file.StartsWith(Path.Combine(rootDir, "src", "libraries"), StringComparison.OrdinalIgnoreCase) || 
-            file.StartsWith(Path.Combine(rootDir, "src", "coreclr", "System.Private.CoreLib", "src"), StringComparison.OrdinalIgnoreCase))
+            file.StartsWith(Path.Combine(rootDir, "src", "coreclr", "System.Private.CoreLib"), StringComparison.OrdinalIgnoreCase) ||
+            file.StartsWith(Path.Combine(rootDir, "src", "coreclr", "nativeaot"), StringComparison.OrdinalIgnoreCase))
         {
             // Just the 3rd directory in the path, e.g.:
             //
@@ -84,6 +94,14 @@ public class Program
             //                       ^^^^^^^^^^^^^^
             var parts = relativePath.Split(Path.DirectorySeparatorChar);
             return parts.Length > 3 ? parts[2] : "Other";
+        }
+        if (file.StartsWith(Path.Combine(rootDir, "src", "mono"), StringComparison.OrdinalIgnoreCase))
+        {
+            return "mono";
+        }
+        if (file.StartsWith(Path.Combine(rootDir, "src", "native", "managed", "cdacreader"), StringComparison.OrdinalIgnoreCase))
+        {
+            return "cDAC";
         }
 
         return "Other";
