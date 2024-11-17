@@ -25,7 +25,7 @@ public record MemberSafetyInfo(string File, SyntaxNode Member, MemberKind Kind)
 
 internal class UnsafeCodeAnalyzer
 {
-    public static async Task<MemberSafetyInfo[]> AnalyzeFolders(string folder, Func<string, bool> csFilePredicate, bool verbose)
+    public static async Task<MemberSafetyInfo[]> AnalyzeFolders(string folder, Func<string, bool> csFilePredicate)
     {
         int filesAnalyzed = 0;
         List<MemberSafetyInfo> results = [];
@@ -35,8 +35,7 @@ internal class UnsafeCodeAnalyzer
             if (csFilePredicate(file))
             {
                 MemberSafetyInfo[] result = await AnalyzeCSharpFile(file);
-                if (verbose)
-                    Console.Write($"\r*.cs files analyzed: {Interlocked.Increment(ref filesAnalyzed)}\r");
+                Console.Write($"\r*.cs files analyzed: {Interlocked.Increment(ref filesAnalyzed)}\r");
 
                 lock (results)
                     results.AddRange(result);

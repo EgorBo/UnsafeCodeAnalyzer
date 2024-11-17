@@ -8,10 +8,9 @@
 
 // Parse command line arguments
 //
-//   Usage: UnsafeCodeAnalyzer.exe [repo] [outputReport] [verbosity] [groupByKind]
+//   Usage: UnsafeCodeAnalyzer.exe [repo] [outputReport] [groupByKind]
 //
 // Default values:
-bool verbose = true;
 string outputReport = @"C:\prj\unsafe_report.md"; // can be changed to .csv
 string repo = @"C:\prj\runtime-2024";
 ReportGroupByKind groupByKind = ReportGroupByKind.AssemblyName;
@@ -19,8 +18,7 @@ ReportGroupByKind groupByKind = ReportGroupByKind.AssemblyName;
 // Parsing
 if (args.Length > 0) repo = args[0];
 if (args.Length > 1) outputReport = args[1];
-if (args.Length > 2) verbose = args[2] != "-quite";
-if (args.Length > 3) Enum.TryParse(args[3], out groupByKind);
+if (args.Length > 2) Enum.TryParse(args[2], out groupByKind);
 
 
 // *.cs file predicate: should we process this file?
@@ -41,41 +39,40 @@ static bool ShouldProcessCsFile(string csFile)
 }
 
 var sw = Stopwatch.StartNew();
-MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(repo, ShouldProcessCsFile, verbose);
+MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(repo, ShouldProcessCsFile);
 sw.Stop();
-if (verbose)
-    Console.WriteLine($"Analysis took {sw.Elapsed.TotalSeconds:F2} seconds");
+Console.WriteLine($"Analysis took {sw.Elapsed.TotalSeconds:F2} seconds");
 
-    // Generate CSV and MD report
-    await ReportGenerator.Dump(result, outputReport, groupByFunc: info =>
+// Generate CSV and MD report
+await ReportGenerator.Dump(result, outputReport, groupByFunc: info =>
+{
+    string file = info.File;
+    string relativePath = Path.GetRelativePath(repo, file);
+
+    // Options to group the results:
+
+    // 1. No grouping:
+    if (groupByKind == ReportGroupByKind.None)
+        return "All";
+
+    // 2. Group by file:
+    if (groupByKind == ReportGroupByKind.Path)
+        return relativePath;
+
+    // 3. Try to extract assembly name from the path:
+    Debug.Assert(groupByKind == ReportGroupByKind.AssemblyName);
+    if (file.StartsWith(Path.Combine(repo, "src", "libraries"), StringComparison.OrdinalIgnoreCase) ||
+        file.StartsWith(Path.Combine(repo, "src", "coreclr", "System.Private.CoreLib", "src"), StringComparison.OrdinalIgnoreCase))
     {
-        string file = info.File;
-        string relativePath = Path.GetRelativePath(repo, file);
-
-        // Options to group the results:
-
-        // 1. No grouping:
-        if (groupByKind == ReportGroupByKind.None)
-            return "All";
-
-        // 2. Group by file:
-        if (groupByKind == ReportGroupByKind.Path)
-            return relativePath;
-
-        // 3. Try to extract assembly name from the path:
-        Debug.Assert(groupByKind == ReportGroupByKind.AssemblyName);
-        if (file.StartsWith(Path.Combine(repo, "src", "libraries"), StringComparison.OrdinalIgnoreCase) ||
-            file.StartsWith(Path.Combine(repo, "src", "coreclr", "System.Private.CoreLib", "src"), StringComparison.OrdinalIgnoreCase))
-        {
-            // Just the 3rd directory in the path, e.g.:
-            //
-            //   $repo/src/libraries/System.Console/src/System/Console.cs
-            //                       ^^^^^^^^^^^^^^
-            var parts = relativePath.Split(Path.DirectorySeparatorChar);
-            return parts.Length > 3 ? parts[2] : "Other";
-        }
-        return "Other";
-    });
+        // Just the 3rd directory in the path, e.g.:
+        //
+        //   $repo/src/libraries/System.Console/src/System/Console.cs
+        //                       ^^^^^^^^^^^^^^
+        var parts = relativePath.Split(Path.DirectorySeparatorChar);
+        return parts.Length > 3 ? parts[2] : "Other";
+    }
+    return "Other";
+});
 
 int totalMethods                  = result.Count(r => r.Kind is not MemberKind.IsSafe_TrivialProperty);
 int totalMethodsWithPinvokes      = result.Count(r => r.Kind is MemberKind.IsPinvoke);
@@ -95,8 +92,7 @@ Console.WriteLine($"Total methods: {totalMethods}, among them:\n" +
                   $" - With unsafe APIs in safe context: {totalMethodsWithUnsafeApis}\n" +
                   $" - Total methods with non-safe code: {totalUnsafeMethods} ({unsafeMethodsPercentage:F2}%)\n");
 
-if (verbose)
-    Console.WriteLine($"Report is saved to {outputReport}");
+Console.WriteLine($"Report is saved to {outputReport}");
 
 enum ReportGroupByKind
 {
