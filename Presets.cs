@@ -18,6 +18,7 @@ public static class Presets
         };
 }
 
+// Generic preset for any repository
 public class GenericPreset
 {
     public virtual bool ShouldProcessCsFile(string csFile) =>
@@ -36,6 +37,7 @@ public class GenericPreset
         };
 }
 
+// Preset for dotnet/runtime repository to make the report more readable
 public class DotnetRuntimeRepo : GenericPreset
 {
     public override bool ShouldProcessCsFile(string csFile)
