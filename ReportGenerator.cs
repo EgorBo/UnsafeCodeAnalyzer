@@ -5,7 +5,7 @@
     {
         groupByFunc ??= _ => "All";
 
-        if (outputReport == null)
+        if (string.IsNullOrWhiteSpace(outputReport))
         {
             DumpConsole(members);
         }
@@ -126,4 +126,11 @@
 
         await File.WriteAllTextAsync(outputReport, content);
     }
+}
+
+public enum ReportGroupByKind
+{
+    None,
+    Path,
+    AssemblyName
 }
