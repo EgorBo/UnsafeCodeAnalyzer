@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 public enum MemberKind
 {
     UsesUnsafeContext,
+    UsesClassUnsafeContext, // Method is inside a class with unsafe modifier, can't tell if it's actually unsafe
+                            // since it can be i.e. `void Foo() => Bar(GetPtr())` - we don't see any unsafe tokens here
     UsesUnsafeApis, // Has calls to unsafe APIs, but no unsafe context
     IsPinvoke,
     IsSafe,
@@ -90,15 +92,6 @@ internal class UnsafeCodeAnalyzer
             }
         }
 
-        switch (member)
-        {
-            // Method has unsafe modifier
-            case MethodDeclarationSyntax methDecl when methDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
-            case PropertyDeclarationSyntax propDecl when propDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
-            case ConstructorDeclarationSyntax ctorDecl when ctorDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
-                return MemberKind.UsesUnsafeContext;
-        }
-
         // Check for unsafe blocks in the body
         if (member.DescendantNodes()
             .OfType<UnsafeStatementSyntax>()
@@ -165,6 +158,15 @@ internal class UnsafeCodeAnalyzer
             {
                 return MemberKind.IsSafe_TrivialProperty;
             }
+        }
+
+        switch (member)
+        {
+            // Method has unsafe modifier
+            case MethodDeclarationSyntax methDecl when methDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
+            case PropertyDeclarationSyntax propDecl when propDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
+            case ConstructorDeclarationSyntax ctorDecl when ctorDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
+                return MemberKind.UsesClassUnsafeContext;
         }
 
         return MemberKind.IsSafe;

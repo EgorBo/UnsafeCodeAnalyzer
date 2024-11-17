@@ -33,7 +33,8 @@ bool ShouldProcessCsFile(string csFile)
     // since "groupByFunc" below depends on it
     string[] allowListFolders =
     [
-        Path.Combine(repo, "src", "libraries"), Path.Combine(repo, "src", "coreclr", "System.Private.CoreLib", "src", "System"),
+        Path.Combine(repo, "src", "libraries"), 
+        Path.Combine(repo, "src", "coreclr", "System.Private.CoreLib", "src", "System"),
         // NOTE: the path for corelib was changed in 2021
     ];
     if (!allowListFolders.Any(f => csFile.StartsWith(f, StringComparison.OrdinalIgnoreCase))) 
