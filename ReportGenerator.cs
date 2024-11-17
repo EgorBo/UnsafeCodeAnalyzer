@@ -127,10 +127,3 @@
         await File.WriteAllTextAsync(outputReport, content);
     }
 }
-
-public enum ReportGroupByKind
-{
-    None,
-    Path,
-    AssemblyName
-}

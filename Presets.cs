@@ -1,7 +1,4 @@
-﻿using System.Diagnostics;
-
-
-public enum Preset
+﻿public enum Preset
 {
     Generic,
     DotnetRuntimeRepo
@@ -27,14 +24,7 @@ public class GenericPreset
             // Ignore files in these directories:
             .Any(directoryName => directoryName is "test" or "tests" or "ref");
 
-    public virtual string GroupByFunc(string rootDir, ReportGroupByKind kind, MemberSafetyInfo info) =>
-        kind switch
-        {
-            ReportGroupByKind.None => "All",
-            ReportGroupByKind.Path => info.File,
-            ReportGroupByKind.AssemblyName => throw new NotSupportedException(),
-            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
-        };
+    public virtual string GroupByFunc(string rootDir, MemberSafetyInfo info) => info.File;
 }
 
 // Preset for dotnet/runtime repository to make the report more readable
@@ -66,7 +56,7 @@ public class DotnetRuntimeRepo : GenericPreset
                !csFile.Contains(Path.Combine("System", "Numerics", "Vector"));
     }
 
-    public override string GroupByFunc(string rootDir, ReportGroupByKind kind, MemberSafetyInfo info)
+    public override string GroupByFunc(string rootDir, MemberSafetyInfo info)
     {
         string file = info.File;
         string relativePath = Path.GetRelativePath(rootDir, file);
@@ -74,13 +64,12 @@ public class DotnetRuntimeRepo : GenericPreset
         // Options to group the results:
 
         // 1. No grouping:
-        if (kind == ReportGroupByKind.None) return "All";
+        // return "All";
 
         // 2. Group by file:
-        if (kind == ReportGroupByKind.Path) return relativePath;
+        // return relativePath;
 
         // 3. Try to extract assembly name from the path:
-        Debug.Assert(kind == ReportGroupByKind.AssemblyName);
         if (file.StartsWith(Path.Combine(rootDir, "src", "libraries"), StringComparison.OrdinalIgnoreCase) ||
             file.StartsWith(Path.Combine(rootDir, "src", "coreclr", "System.Private.CoreLib"), StringComparison.OrdinalIgnoreCase) ||
             file.StartsWith(Path.Combine(rootDir, "src", "coreclr", "nativeaot"), StringComparison.OrdinalIgnoreCase))

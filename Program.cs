@@ -6,39 +6,34 @@ public class Program
     //
     // Example usage:
     //
-    //   dotnet run -- C:\prj\runtime-main C:\prj\runtime.csv DotnetRuntimeRepo
-    //   dotnet run -- C:\prj\aspnetcore C:\prj\aspnetcore.md Generic
+    //   dotnet run -c Release -- --dir C:\prj\runtime-main --report C:\prj\runtime.csv --preset DotnetRuntimeRepo
+    //   dotnet run -c Release -- --dir C:\prj\aspnetcore --report C:\prj\aspnetcore.md --preset Generic
     //
     public static async Task<int> Main(
-        string rootDir                = "", // path to the root folder to analyze
-        string outputReport           = "", // path to the output report (.csv or .md)
-        Preset preset                 = Preset.Generic, // or DotnetRuntimeRepo
-        ReportGroupByKind groupByKind = ReportGroupByKind.Path)
+        string dir              = "", // path to the root folder to analyze
+        string report           = "output.csv", // path to the output report (.csv or .md)
+        Preset preset           = Preset.Generic // or DotnetRuntimeRepo (for dotnet/runtime repo)
+        )
     {
-        if (string.IsNullOrWhiteSpace(rootDir))
+        if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
         {
-            Console.WriteLine("Usage: UnsafeCodeAnalyzer <rootDir> <outputReport> <preset> <groupByKind>");
+            Console.WriteLine($"Dir --dir '{dir}' does not exist. See --help");
             return 1;
-        }
-
-        if (!Directory.Exists(rootDir))
-        {
-            Console.WriteLine($"Folder '{rootDir}' does not exist.");
-            return 2;
         }
 
         GenericPreset presetObj = Presets.GetPreset(preset);
 
         var sw = Stopwatch.StartNew();
-        MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(rootDir, presetObj.ShouldProcessCsFile);
+        MemberSafetyInfo[] result = await UnsafeCodeAnalyzer.AnalyzeFolders(dir, presetObj.ShouldProcessCsFile);
         sw.Stop();
         Console.WriteLine($"Analysis took {sw.Elapsed.TotalSeconds:F2} seconds");
 
-        await ReportGenerator.Dump(result, outputReport, groupByFunc: info => presetObj.GroupByFunc(rootDir, groupByKind, info));
-        Console.WriteLine($"Report is saved to {outputReport}");
-
-        // Also, dump to console:
+        // Dump to console:
         ReportGenerator.DumpConsole(result);
+
+        // Dump to file:
+        await ReportGenerator.Dump(result, report, groupByFunc: info => presetObj.GroupByFunc(dir, info));
+        Console.WriteLine($"Report is saved to {report}");
 
         return 0;
     }
