@@ -9,17 +9,33 @@
     <TieredCompilation>false</TieredCompilation>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <GarbageCollectionAdaptationMode>0</GarbageCollectionAdaptationMode>
-    <IlcInstructionSet>native</IlcInstructionSet>
-	<GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <PackageId>UnsafeCodeAnalyzer</PackageId>
+    <Description>UnsafeCodeAnalyzer is a .NET tool</Description>
+    <Copyright>EgorBo</Copyright>
+    <Authors>EgorBo</Authors>
+    <PackageTags>unsafe;</PackageTags>
+    <!-- <PackageReadmeFile>readme.md</PackageReadmeFile> -->
+    <!-- <PackageIcon>logo.png</PackageIcon> -->
+    <PackageProjectUrl>https://github.com/EgorBo/UnsafeCodeAnalyzer</PackageProjectUrl>
+    <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/EgorBo/UnsafeCodeAnalyzer</RepositoryUrl>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!--Add support for sourcelink-->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
-  <PropertyGroup>
-    <NoWarn>1591</NoWarn>
-  </PropertyGroup>
-  <ItemGroup>
-    <None Remove=".gitignore" />
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0-3.final" />
-    <PackageReference Include="System.CommandLine.DragonFruit" Version="0.4.0-alpha.22272.1" />
+    <PackageReference Include="MinVer" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
   </ItemGroup>
 </Project>

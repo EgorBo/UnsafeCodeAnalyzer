@@ -5,15 +5,15 @@ A tool to analyze the usage of memory-unsafe code in a C# codebase.
 ## Usage example:
 ```ps1
 # Using the DotnetRuntimeRepo preset for dotnet/runtime repository
-dotnet run -- --dir D:\runtime --report D:\runtime.csv --preset DotnetRuntimeRepo
+dotnet run -- analyze --dir D:\runtime --report D:\runtime.csv --preset DotnetRuntimeRepo
 
 # Using the generic preset for any repository
-dotnet run -- --dir D:\aspnetcore --report D:\aspnetcore.csv --preset DotnetRuntimeRepo
+dotnet run -- analyze --dir D:\aspnetcore --report D:\aspnetcore.csv --preset Generic
 ```
 
 ## Output example
 
-### Console output:
+Console output:
 ```
   Total methods:                         134802
   Total P/Invokes:                         2650
@@ -21,7 +21,7 @@ dotnet run -- --dir D:\aspnetcore --report D:\aspnetcore.csv --preset DotnetRunt
   Total methods with Unsafe API calls:     2480
 ```
 
-### Markdown report:
+Markdown report:
 
 | Assembly | Total<br/>methods | P/Invokes | Methods with<br/>'unsafe' context | Methods with<br/>Unsafe API calls |
 | ---------| ------------------| ----------| ----------------------------------| ----------------------------------|

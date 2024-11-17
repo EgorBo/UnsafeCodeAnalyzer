@@ -1,4 +1,6 @@
-﻿public static class ReportGenerator
+﻿using System.Text;
+
+public static class ReportGenerator
 {
     public static async Task Dump(MemberSafetyInfo[] members, string? outputReport = null,
         Func<MemberSafetyInfo, string>? groupByFunc = null)
@@ -68,7 +70,7 @@
             .ToArray();
 
         // Show only top 5 groups and merge the rest into "Other" group
-        const int significantGroupsCount = 8;
+        const int significantGroupsCount = 16;
         var significantGroups = groups.Take(significantGroupsCount);
         var otherGroups = groups.Skip(significantGroupsCount).ToArray();
 
@@ -116,5 +118,71 @@
             $"**{grandTotalMethodsWithUnsafeApis}** |\n";
 
         await File.WriteAllTextAsync(outputReport, content);
+    }
+
+    public static void Compare(string baseMd, string diffMd, string outputReport)
+    {
+        var baseData = File.ReadAllLines(baseMd)
+            .Skip(2)
+            .Select(line => line.Trim('|', ' ').Split("|"))
+            .ToDictionary(
+                parts => parts[0],
+                parts => parts.Skip(1).Select(i => int.Parse(i.Trim(' ', '*'))).ToArray());
+
+        var diffData = File.ReadAllLines(diffMd)
+            .Skip(2)
+            .Select(line => line.Trim('|', ' ').Split("|"))
+            .ToDictionary(
+                parts => parts[0],
+                parts => parts.Skip(1).Select(i => int.Parse(i.Trim(' ', '*'))).ToArray());
+
+        int columnsCount = 0; // does not include the first column (name)
+        if (baseData.Count > 0)
+            columnsCount = baseData.First().Value.Length;
+        else if (diffData.Count > 0)
+            columnsCount = diffData.First().Value.Length;
+
+        // Add missing keys
+        foreach (var key in diffData.Keys)
+            if (!baseData.ContainsKey(key))
+                baseData[key] = new int[columnsCount];
+        foreach (var key in baseData.Keys)
+            if (!diffData.ContainsKey(key))
+                diffData[key] = new int[columnsCount];
+
+        string content = string.Join("\n", File.ReadAllLines(baseMd).Take(2)) + "\n";
+        foreach (var (key, baseValues) in baseData.OrderBy(i =>
+                 {
+                     var trimmedKey = i.Key.Trim('*', ' ').ToLowerInvariant();
+                     return trimmedKey switch
+                     {
+                         // Put these keys at the end
+                         "total" => ((char)0xFF).ToString(),
+                         "other" => ((char)0xFE).ToString(),
+                         "misc" => ((char)0xFD).ToString(),
+                         _ => i.Key
+                     };
+                 }, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!diffData.TryGetValue(key, out var diffValues))
+                diffValues = new int[columnsCount];
+
+            var deltas = baseValues.Zip(diffValues, (baseValue, diffValue) => diffValue - baseValue).ToArray();
+
+            content += $"| {key} | ";
+            for (int i = 0; i < columnsCount; i++)
+            {
+                int delta = deltas[i];
+                var deltaStr = delta switch
+                {
+                    > 0 => $"(${{\\textsf{{\\color{{red}}+{delta}}}}}$)",
+                    < 0 => $"(${{\\textsf{{\\color{{green}}{delta}}}}}$)",
+                    _ => ""
+                };
+                content += $"{diffData[key][i]} {deltaStr} | ";
+            }
+            content += "\n";
+        }
+        File.WriteAllText(outputReport, content);
     }
 }

@@ -3,28 +3,34 @@ public class DotnetRuntimeRepo : GenericPreset
 {
     public override bool ShouldProcessCsFile(string csFile)
     {
-        if (csFile.Split(Path.DirectorySeparatorChar)
-            .Any(directoryName => directoryName is
-                "test" or
-                "tests" or
-                "ref" or
-                "docs" or
-                "installer" or
-                "workloads" or
-                "tasks" or
-                "samples" or
-                "Fuzzing" or
-                "tools"))
-        {
-            // Ignore files in these directories.
-            return false;
-        }
-
         // Ignore files in System.Runtime.Intrinsics/SIMD stuff,
         // Otherwise we're going to see dramatic increase in the number of unsafe methods
         // because of AVX512 and SVE (many of them have unsafe signatures)
-        return !csFile.Contains(Path.Combine("System", "Runtime", "Intrinsics")) &&
-               !csFile.Contains(Path.Combine("System", "Numerics", "Vector"));
+        if (csFile.Contains(Path.Combine("System", "Runtime", "Intrinsics")) ||
+            csFile.Contains(Path.Combine("System", "Numerics", "Vector")))
+        {
+            return false;
+        }
+
+        return !csFile
+            .Split(Path.DirectorySeparatorChar)
+            .Any(directoryName =>
+            {
+                var name = directoryName.ToLowerInvariant();
+                return name.EndsWith(".test", StringComparison.Ordinal) ||
+                       name.EndsWith(".tests", StringComparison.Ordinal) ||
+                       name is 
+                           "test" or
+                           "tests" or
+                           "ref" or
+                           "docs" or
+                           "installer" or
+                           "workloads" or
+                           "tasks" or
+                           "samples" or
+                           "Fuzzing" or
+                           "tools";
+            });
     }
 
     public override string GroupByFunc(string rootDir, MemberSafetyInfo info)
@@ -50,7 +56,7 @@ public class DotnetRuntimeRepo : GenericPreset
             //   $repo/src/libraries/System.Console/src/System/Console.cs
             //                       ^^^^^^^^^^^^^^
             var parts = relativePath.Split(Path.DirectorySeparatorChar);
-            return parts.Length > 3 ? parts[2] : "Other";
+            return parts.Length > 3 ? parts[2] : "Misc";
         }
         if (file.StartsWith(Path.Combine(rootDir, "src", "mono"), StringComparison.OrdinalIgnoreCase))
         {
@@ -61,6 +67,6 @@ public class DotnetRuntimeRepo : GenericPreset
             return "cDAC";
         }
 
-        return "Other";
+        return "Misc";
     }
 }
