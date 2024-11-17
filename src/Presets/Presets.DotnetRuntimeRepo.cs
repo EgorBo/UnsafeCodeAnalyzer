@@ -1,33 +1,4 @@
-﻿public enum Preset
-{
-    Generic,
-    DotnetRuntimeRepo
-}
-
-public static class Presets
-{
-    public static GenericPreset GetPreset(Preset preset) =>
-        preset switch
-        {
-            Preset.Generic => new GenericPreset(),
-            Preset.DotnetRuntimeRepo => new DotnetRuntimeRepo(),
-            _ => throw new NotSupportedException($"Preset '{preset}' is not implemented yet.")
-        };
-}
-
-// Generic preset for any repository
-public class GenericPreset
-{
-    public virtual bool ShouldProcessCsFile(string csFile) =>
-        !csFile
-            .Split(Path.DirectorySeparatorChar)
-            // Ignore files in these directories:
-            .Any(directoryName => directoryName is "test" or "tests" or "ref");
-
-    public virtual string GroupByFunc(string rootDir, MemberSafetyInfo info) => info.File;
-}
-
-// Preset for dotnet/runtime repository to make the report more readable
+﻿// Preset for dotnet/runtime repository to make the report more readable
 public class DotnetRuntimeRepo : GenericPreset
 {
     public override bool ShouldProcessCsFile(string csFile)

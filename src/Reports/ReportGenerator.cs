@@ -6,21 +6,13 @@
         groupByFunc ??= _ => "All";
 
         if (string.IsNullOrWhiteSpace(outputReport))
-        {
             DumpConsole(members);
-        }
         else if(outputReport.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
-        {
             await DumpCsv(members, outputReport, groupByFunc);
-        }
         else if (outputReport.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
-        {
             await DumpMarkdown(members, outputReport, groupByFunc);
-        }
         else
-        {
             throw new ArgumentException("Unknown report format, must be either .csv or .md", nameof(outputReport));
-        }
     }
 
     // Generate CSV report
@@ -30,10 +22,10 @@
         foreach (var group in members.GroupBy(groupByFunc))
         {
             // We exclude trivial properties from the total count, we treat them as fields
-            int totalMethods = group.Count(r => r is { CanBeIgnored: false });
-            int totalMethodsWithPinvokes = group.Count(r => r is { IsPinvoke: false, CanBeIgnored: false });
-            int totalMethodsWithUnmanagedPtrs = group.Count(r => r is { HasUnsafeContext: true, CanBeIgnored: false });
-            int totalMethodsWithUnsafeApis = group.Count(r => r is { HasUnsafeApis: true, CanBeIgnored: false });
+            int totalMethods                  = group.Count(r => r is { CanBeIgnored: false });
+            int totalMethodsWithPinvokes      = group.Count(r => r is { CanBeIgnored: false, IsPinvoke: true });
+            int totalMethodsWithUnmanagedPtrs = group.Count(r => r is { CanBeIgnored: false, HasUnsafeContext: true });
+            int totalMethodsWithUnsafeApis    = group.Count(r => r is { CanBeIgnored: false, HasUnsafeApis: true });
 
             await File.AppendAllTextAsync(outputReport,
                 $"\"{group.Key}\", " +
@@ -49,13 +41,12 @@
     {
         int totalTrivialProperties          = members.Count(r => r is { CanBeIgnored: true });
         int totalMethods                    = members.Count(r => r is { CanBeIgnored: false });
-        int totalMethodsWithPinvokes        = members.Count(r => r is { CanBeIgnored: false, IsPinvoke: false });
+        int totalMethodsWithPinvokes        = members.Count(r => r is { CanBeIgnored: false, IsPinvoke: true });
         int totalMethodsWithUnmanagedPtrs   = members.Count(r => r is { CanBeIgnored: false, HasUnsafeContext: true });
         int totalMethodsWithUnsafeApis      = members.Count(r => r is { CanBeIgnored: false, HasUnsafeApis: true  });
         int totalMethodsWithinUnsafeClasses = members.Count(r => r is { CanBeIgnored: false, HasUnsafeContext: false, HasUnsafeApis: false, HasUnsafeModifierOnParent: true });
 
         Console.WriteLine("");
-        Console.WriteLine($"  Total trivial properties:            {totalTrivialProperties.ToString(),8}");
         Console.WriteLine($"  Total methods:                       {totalMethods.ToString(),8}");
         Console.WriteLine($"  Total P/Invokes:                     {totalMethodsWithPinvokes.ToString(),8}");
         Console.WriteLine($"  Total methods with 'unsafe' context: {totalMethodsWithUnmanagedPtrs.ToString(),8}");
@@ -84,10 +75,10 @@
         // Add significant groups
         foreach (var group in significantGroups)
         {
-            int totalMethods = group.Count(r => r is { CanBeIgnored: false });
-            int totalMethodsWithPinvokes = group.Count(r => r is { IsPinvoke: false, CanBeIgnored: false });
-            int totalMethodsWithUnmanagedPtrs = group.Count(r => r is { HasUnsafeContext: true, CanBeIgnored: false });
-            int totalMethodsWithUnsafeApis = group.Count(r => r is { HasUnsafeApis: true, CanBeIgnored: false });
+            int totalMethods                  = group.Count(r => r is { CanBeIgnored: false });
+            int totalMethodsWithPinvokes      = group.Count(r => r is { CanBeIgnored: false, IsPinvoke: true });
+            int totalMethodsWithUnmanagedPtrs = group.Count(r => r is { CanBeIgnored: false, HasUnsafeContext: true });
+            int totalMethodsWithUnsafeApis    = group.Count(r => r is { CanBeIgnored: false, HasUnsafeApis: true });
 
             content +=
                 $"| {group.Key} | " +
@@ -100,10 +91,10 @@
         // Add "Other" group
         if (otherGroups.Any())
         {
-            int totalMethods = otherGroups.Sum(g => g.Count(r => r is { CanBeIgnored: false }));
-            int totalMethodsWithPinvokes = otherGroups.Sum(g => g.Count(r => r is { IsPinvoke: false, CanBeIgnored: false }));
-            int totalMethodsWithUnmanagedPtrs = otherGroups.Sum(g => g.Count(r => r is { HasUnsafeContext: true, CanBeIgnored: false }));
-            int totalMethodsWithUnsafeApis = otherGroups.Sum(g => g.Count(r => r is { HasUnsafeApis: true, CanBeIgnored: false }));
+            int totalMethods                  = otherGroups.Sum(g => g.Count(r => r is { CanBeIgnored: false }));
+            int totalMethodsWithPinvokes      = otherGroups.Sum(g => g.Count(r => r is { CanBeIgnored: false, IsPinvoke: true }));
+            int totalMethodsWithUnmanagedPtrs = otherGroups.Sum(g => g.Count(r => r is { CanBeIgnored: false, HasUnsafeContext: true }));
+            int totalMethodsWithUnsafeApis    = otherGroups.Sum(g => g.Count(r => r is { CanBeIgnored: false, HasUnsafeApis: true }));
             content +=
                 $"| *Other* | " +
                 $"{totalMethods} | " +
@@ -113,10 +104,10 @@
         }
 
         // Grand total
-        int grandTotalMethods = members.Count(r => r is { CanBeIgnored: false });
-        int grandTotalMethodsWithPinvokes = members.Count(r => r is { IsPinvoke: false, CanBeIgnored: false });
-        int grandTotalMethodsWithUnmanagedPtrs = members.Count(r => r is { HasUnsafeContext: true, CanBeIgnored: false });
-        int grandTotalMethodsWithUnsafeApis = members.Count(r => r is { HasUnsafeApis: true, CanBeIgnored: false });
+        int grandTotalMethods                  = members.Count(r => r is { CanBeIgnored: false });
+        int grandTotalMethodsWithPinvokes      = members.Count(r => r is { CanBeIgnored: false, IsPinvoke: true });
+        int grandTotalMethodsWithUnmanagedPtrs = members.Count(r => r is { CanBeIgnored: false, HasUnsafeContext: true });
+        int grandTotalMethodsWithUnsafeApis    = members.Count(r => r is { CanBeIgnored: false, HasUnsafeApis: true });
         content +=
             $"| **Total** | " +
             $"**{grandTotalMethods}** | " +
