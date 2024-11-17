@@ -6,8 +6,8 @@ public class Program
     //
     // Example usage:
     //
-    //   dotnet run -c Release -- --dir C:\prj\runtime-main --report C:\prj\runtime.csv --preset DotnetRuntimeRepo
-    //   dotnet run -c Release -- --dir C:\prj\aspnetcore --report C:\prj\aspnetcore.md --preset Generic
+    //   dotnet run -c Release -- --dir D:\runtime-main --report D:\runtime.csv --preset DotnetRuntimeRepo
+    //   dotnet run -c Release -- --dir D:\aspnetcore --report D:\aspnetcore.md --preset Generic
     //
     public static async Task<int> Main(
         string dir              = "", // path to the root folder to analyze
