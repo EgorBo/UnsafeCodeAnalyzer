@@ -372,6 +372,23 @@ internal class UnsafeCodeAnalyzer
 
 public static class ReportGenerator
 {
+    public static async Task Dump(MemberSafetyInfo[] members, string outputReport,
+        Func<MemberSafetyInfo, string> groupByFunc)
+    {
+        if (outputReport.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+        {
+            await DumpCsv(members, outputReport, groupByFunc);
+        }
+        else if (outputReport.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+        {
+            await DumpMarkdown(members, outputReport, groupByFunc);
+        }
+        else
+        {
+            throw new ArgumentException("Unknown report format, must be either .csv or .md", nameof(outputReport));
+        }
+    }
+
     public static async Task DumpCsv(MemberSafetyInfo[] members, string outputReport, Func<MemberSafetyInfo, string> groupByFunc)
     {
         try
