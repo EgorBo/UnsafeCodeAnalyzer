@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-public static class ReportGenerator
+﻿public static class ReportGenerator
 {
     public static async Task Dump(MemberSafetyInfo[] members, string? outputReport = null,
         Func<MemberSafetyInfo, string>? groupByFunc = null)

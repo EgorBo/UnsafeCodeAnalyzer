@@ -10,6 +10,8 @@ public class Program
     //   dotnet run -c Release -- analyze --dir D:\runtime-main --report D:\runtime.csv --preset DotnetRuntimeRepo
     //   dotnet run -c Release -- analyze --dir D:\aspnetcore --report D:\aspnetcore.md --preset Generic
     //
+    //   dotnet run -c Release -- compare --base D:\report1.md --diff D:\report2.md --output D:\diff.md --only-changes true
+    //
     public static async Task<int> Main(string[] args)
     {
         var rootCommand = new RootCommand();

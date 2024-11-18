@@ -35,6 +35,7 @@ internal class UnsafeCodeAnalyzer
                 // Methods, properties, constructors
                 MethodDeclarationSyntax or
                 PropertyDeclarationSyntax or
+                LocalFunctionStatementSyntax or
                 ConstructorDeclarationSyntax)
             .Select(syntaxNode => AnalyzeMethodNode(file, syntaxNode))
             .ToArray();
@@ -43,18 +44,22 @@ internal class UnsafeCodeAnalyzer
     private static MemberSafetyInfo AnalyzeMethodNode(string file, SyntaxNode member)
     {
         var result = new MemberSafetyInfo(file, member);
+
+        SyntaxList<AttributeListSyntax> attributes = [];
         if (member is MethodDeclarationSyntax method)
+            attributes = method.AttributeLists;
+        if (member is LocalFunctionStatementSyntax localFun)
+            attributes = localFun.AttributeLists;
+
+        if (attributes
+            .SelectMany(al => al.Attributes)
+            .Any(attr => attr.Name.ToString() is
+                "DllImport" or "DllImportAttribute" or
+                "LibraryImport" or "LibraryImportAttribute"))
         {
-            if (method.AttributeLists
-                .SelectMany(al => al.Attributes)
-                .Any(attr => attr.Name.ToString() is
-                    "DllImport" or "DllImportAttribute" or
-                    "LibraryImport" or "LibraryImportAttribute"))
-            {
-                // UnmanagedCallersOnly ?
-                // UnmanagedFunctionPointer ?
-                result.IsPinvoke = true;
-            }
+            // UnmanagedCallersOnly ?
+            // UnmanagedFunctionPointer ?
+            result.IsPinvoke = true;
         }
 
         // If any of the parent classes or structs have unsafe modifier, then everything inside is unsafe
@@ -66,6 +71,8 @@ internal class UnsafeCodeAnalyzer
             {
                 case ClassDeclarationSyntax cls when cls.Modifiers.Any(SyntaxKind.UnsafeKeyword):
                 case StructDeclarationSyntax strct when strct.Modifiers.Any(SyntaxKind.UnsafeKeyword):
+                case MethodDeclarationSyntax methd when methd.Modifiers.Any(SyntaxKind.UnsafeKeyword):
+                case LocalFunctionStatementSyntax lclFund when lclFund.Modifiers.Any(SyntaxKind.UnsafeKeyword):
                     result.HasUnsafeModifierOnParent = true;
                     break;
                 default:
@@ -145,6 +152,7 @@ internal class UnsafeCodeAnalyzer
         switch (member)
         {
             // Method has unsafe modifier
+            case LocalFunctionStatementSyntax localFunDecl when localFunDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
             case MethodDeclarationSyntax methDecl when methDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
             case PropertyDeclarationSyntax propDecl when propDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
             case ConstructorDeclarationSyntax ctorDecl when ctorDecl.Modifiers.Any(SyntaxKind.UnsafeKeyword):
