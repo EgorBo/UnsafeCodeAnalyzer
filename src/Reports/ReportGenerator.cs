@@ -70,7 +70,7 @@ public static class ReportGenerator
             .ToArray();
 
         // Show only top 5 groups and merge the rest into "Other" group
-        const int significantGroupsCount = 16;
+        const int significantGroupsCount = 100;
         var significantGroups = groups.Take(significantGroupsCount);
         var otherGroups = groups.Skip(significantGroupsCount).ToArray();
 
@@ -120,6 +120,7 @@ public static class ReportGenerator
         await File.WriteAllTextAsync(outputReport, content);
     }
 
+    // Compare two *.md reports and produce a new report with deltas
     public static void Compare(string baseMd, string diffMd, string outputReport)
     {
         var baseData = File.ReadAllLines(baseMd)
@@ -175,8 +176,8 @@ public static class ReportGenerator
                 int delta = deltas[i];
                 var deltaStr = delta switch
                 {
-                    > 0 => $"(${{\\textsf{{\\color{{red}}+{delta}}}}}$)",
-                    < 0 => $"(${{\\textsf{{\\color{{green}}{delta}}}}}$)",
+                    > 0 => $"(${{\\textsf{{\\color{{red}}+{delta}}}}}$) \ud83d\udfe5",
+                    < 0 => $"(${{\\textsf{{\\color{{green}}{delta}}}}}$) \ud83d\udfe9",
                     _ => ""
                 };
                 content += $"{diffData[key][i]} {deltaStr} | ";

@@ -28,7 +28,7 @@ public class DotnetRuntimeRepo : GenericPreset
                            "workloads" or
                            "tasks" or
                            "samples" or
-                           "Fuzzing" or
+                           "fuzzing" or
                            "tools";
             });
     }
@@ -64,9 +64,8 @@ public class DotnetRuntimeRepo : GenericPreset
         }
         if (file.StartsWith(Path.Combine(rootDir, "src", "native", "managed", "cdacreader"), StringComparison.OrdinalIgnoreCase))
         {
-            return "cDAC";
+            return "CDACReader";
         }
-
         return "Misc";
     }
 }
