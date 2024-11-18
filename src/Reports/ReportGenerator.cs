@@ -121,7 +121,7 @@ public static class ReportGenerator
     }
 
     // Compare two *.md reports and produce a new report with deltas
-    public static void Compare(string baseMd, string diffMd, string outputReport)
+    public static void Compare(string baseMd, string diffMd, string outputReport, bool showOnlyChanges)
     {
         var baseData = File.ReadAllLines(baseMd)
             .Skip(2)
@@ -169,6 +169,11 @@ public static class ReportGenerator
                 diffValues = new int[columnsCount];
 
             var deltas = baseValues.Zip(diffValues, (baseValue, diffValue) => diffValue - baseValue).ToArray();
+
+            if (showOnlyChanges && deltas.All(d => d == 0))
+            {
+                continue;
+            }
 
             content += $"| {key} | ";
             for (int i = 0; i < columnsCount; i++)

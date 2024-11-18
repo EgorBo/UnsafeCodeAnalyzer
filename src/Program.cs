@@ -19,8 +19,7 @@ public class Program
         //
         var dirOpt = new Option<DirectoryInfo>(
             name: "--dir",
-            description: "Path to the C# codebase to analyze")
-        { IsRequired = true };
+            description: "Path to the C# codebase to analyze") { IsRequired = true };
 
         var reportOpt = new Option<string>(
             name: "--report",
@@ -61,36 +60,39 @@ public class Program
         // "compare" command:
         //
         var baseOpt = new Option<FileInfo>(
-                name: "--base",
-                description: "Path to the C# codebase to analyze")
-        { IsRequired = true };
+            name: "--base",
+            description: "") { IsRequired = true };
 
         var diffOpt = new Option<FileInfo>(
-                name: "--diff",
-                description: "Path to the C# codebase to analyze")
-        { IsRequired = true };
+            name: "--diff",
+            description: "") { IsRequired = true };
 
         var outputOpt = new Option<string>(
             name: "--output",
-            description: "Path to output")
-        { IsRequired = true };
+            description: "Path to output") { IsRequired = true };
+
+        var onlyChangesOpt = new Option<bool>(
+            name: "--only-changes",
+            description: "",
+            getDefaultValue:() => false);
 
         var compareCommand = new Command("compare", "Compare two reports")
             {
                 baseOpt,
                 diffOpt,
-                outputOpt
+                outputOpt,
+                onlyChangesOpt
             };
 
-        compareCommand.SetHandler((baseReport, diffReport, outputPath) =>
+        compareCommand.SetHandler((baseReport, diffReport, outputPath, onlyChanges) =>
             {
                 if (!baseReport.FullName.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
                     !diffReport.FullName.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
                     throw new ArgumentException("Reports must be .md files", nameof(baseReport));
 
-                ReportGenerator.Compare(baseReport.FullName, diffReport.FullName, outputPath);
+                ReportGenerator.Compare(baseReport.FullName, diffReport.FullName, outputPath, onlyChanges);
                 Console.WriteLine($"Comparison report is saved to {outputPath}");
-            }, baseOpt, diffOpt, outputOpt);
+            }, baseOpt, diffOpt, outputOpt, onlyChangesOpt);
 
         rootCommand.AddCommand(analyzeCommand);
         rootCommand.AddCommand(compareCommand);
