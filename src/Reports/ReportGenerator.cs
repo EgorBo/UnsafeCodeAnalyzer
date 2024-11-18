@@ -61,7 +61,7 @@ public static class ReportGenerator
     {
         string content = "";
         // Header
-        content += "| Assembly | Total<br/>methods | P/Invokes | Methods with<br/>'unsafe' context | Methods with<br/>Unsafe API calls |\n";
+        content += "|   Folder | Total<br/>methods | P/Invokes | Methods with<br/>'unsafe' context | Methods with<br/>Unsafe API calls |\n";
         content += "| ---------| ------------------| ----------| ----------------------------------| ----------------------------------|\n";
 
         var groups = members
@@ -184,11 +184,19 @@ public static class ReportGenerator
                 int delta = deltas[i];
                 var deltaStr = delta switch
                 {
-                    > 0 => $"(${{\\textsf{{\\color{{red}}+{delta}}}}}$) \ud83d\udfe5",
-                    < 0 => $"(${{\\textsf{{\\color{{green}}{delta}}}}}$) \ud83d\udfe9",
+                    > 0 => $"(${{\\textsf{{\\color{{red}}+{delta}}}}}$)",
+                    < 0 => $"(${{\\textsf{{\\color{{green}}{delta}}}}}$)",
                     _ => ""
                 };
-                content += $"{diffData[key][i]} {deltaStr} | ";
+
+                string icon = delta switch
+                {
+                    > 0 => "\ud83d\udfe5 ",
+                    < 0 => "\ud83d\udfe9 ",
+                    _ => ""
+                };
+
+                content += $"{icon}{diffData[key][i]} {deltaStr} | ";
             }
             content += "\n";
         }
