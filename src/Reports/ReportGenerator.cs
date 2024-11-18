@@ -71,7 +71,7 @@ public static class ReportGenerator
 
         // Show only top 5 groups and merge the rest into "Other" group
         const int significantGroupsCount = 100;
-        var significantGroups = groups.Take(significantGroupsCount);
+        var significantGroups = groups.Take(significantGroupsCount).ToArray();
         var otherGroups = groups.Skip(significantGroupsCount).ToArray();
 
         // Add significant groups
@@ -105,17 +105,20 @@ public static class ReportGenerator
                 $"{totalMethodsWithUnsafeApis} |\n";
         }
 
-        // Grand total
-        int grandTotalMethods                  = members.Count(r => r is { CanBeIgnored: false });
-        int grandTotalMethodsWithPinvokes      = members.Count(r => r is { CanBeIgnored: false, IsPinvoke: true });
-        int grandTotalMethodsWithUnmanagedPtrs = members.Count(r => r is { CanBeIgnored: false, HasUnsafeContext: true });
-        int grandTotalMethodsWithUnsafeApis    = members.Count(r => r is { CanBeIgnored: false, HasUnsafeApis: true });
-        content +=
-            $"| **Total** | " +
-            $"**{grandTotalMethods}** | " +
-            $"**{grandTotalMethodsWithPinvokes}** | " +
-            $"**{grandTotalMethodsWithUnmanagedPtrs}** | " +
-            $"**{grandTotalMethodsWithUnsafeApis}** |\n";
+        if ((significantGroups.Length + otherGroups.Length) > 1)
+        {
+            // Grand total
+            int grandTotalMethods                  = members.Count(r => r is { CanBeIgnored: false });
+            int grandTotalMethodsWithPinvokes      = members.Count(r => r is { CanBeIgnored: false, IsPinvoke: true });
+            int grandTotalMethodsWithUnmanagedPtrs = members.Count(r => r is { CanBeIgnored: false, HasUnsafeContext: true });
+            int grandTotalMethodsWithUnsafeApis    = members.Count(r => r is { CanBeIgnored: false, HasUnsafeApis: true });
+            content +=
+                $"| **All** | " +
+                $"**{grandTotalMethods}** | " +
+                $"**{grandTotalMethodsWithPinvokes}** | " +
+                $"**{grandTotalMethodsWithUnmanagedPtrs}** | " +
+                $"**{grandTotalMethodsWithUnsafeApis}** |\n";
+        }
 
         await File.WriteAllTextAsync(outputReport, content);
     }
@@ -158,7 +161,7 @@ public static class ReportGenerator
                      return trimmedKey switch
                      {
                          // Put these keys at the end
-                         "total" => ((char)0xFF).ToString(),
+                         "all" => ((char)0xFF).ToString(),
                          "other" => ((char)0xFE).ToString(),
                          "misc" => ((char)0xFD).ToString(),
                          _ => i.Key
