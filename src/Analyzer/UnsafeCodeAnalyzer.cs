@@ -212,14 +212,16 @@ internal class UnsafeCodeAnalyzer
                 "CreateSpan",
                 "GetArrayDataReference",
                 "GetReference",
-                "Read",
                 //"ToEnumerable", // safe
                 "TryGetArray",
                 "TryGetMemoryManager",
                 //"TryGetString", // safe
-                "TryRead",
-                "TryWrite",
-                "Write",
+
+                // These are handled separately:
+                //"Read",
+                //"TryRead",
+                //"TryWrite",
+                //"Write",
             ],
             ["SequenceMarshal"] =
             [
@@ -322,6 +324,45 @@ internal class UnsafeCodeAnalyzer
             })
         {
             return true;
+        }
+
+        // These a bit special, they're not safe when T is a struct with gaps in the layout
+        // or boolean fields. Thus, we conservatively allow primitive types (and some known structs)
+        // to be considered safe.
+        //
+        // MemoryMarshal.Read<T>
+        // MemoryMarshal.TryRead<T>
+        // MemoryMarshal.TryWrite<T>
+        // MemoryMarshal.Write<T>
+        if (invocation.Expression
+            is MemberAccessExpressionSyntax
+            {
+                Name.Identifier.Text: "Read" or "TryRead" or "TryWrite" or "Write",
+                Expression: IdentifierNameSyntax { Identifier.Text: "MemoryMarshal" }
+            } memoryMarshalApi)
+        {
+            if (memoryMarshalApi.Name is GenericNameSyntax memoryMarshalGtx)
+            {
+                var genericArg = memoryMarshalGtx.TypeArgumentList.Arguments[0];
+                if (genericArg is PredefinedTypeSyntax pts && !pts.Keyword.IsKind(SyntaxKind.BoolKeyword))
+                {
+                    // Primitive types are safe (except boolean)
+                }
+                else if (genericArg.ToString() is "Guid" or "UInt128" or "Int128" or "IntPtr" or "UIntPtr" or "nint" or "nuint" or "Half")
+                {
+                    // Known safe structs
+                }
+                else
+                {
+                    // Conservatively assume it's unsafe.
+                    return false;
+                }
+            }
+            else
+            {
+                // Can't determine the type, conservatively assume it's unsafe
+                return true;
+            }
         }
 
         foreach ((string unsafeApiClass, List<string> unsafeApiMembers) in unsafeApis)
