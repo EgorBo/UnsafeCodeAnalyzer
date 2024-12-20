@@ -6,26 +6,76 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 public static class UnboundStackallocAnalyzer
 {
+    private const string ReportFile = @"C:\prj\ff\test.txt";
+
     public static async Task AnalyzeFolders(string folder, Func<string, bool> csFilePredicate, CancellationToken token = default)
     {
         using var workspace = new AdhocWorkspace();
-        Project proj = workspace
-            .AddProject(nameof(UnboundStackallocAnalyzer), LanguageNames.CSharp)
-            .WithMetadataReferences([MetadataReference.CreateFromFile(typeof(object).Assembly.Location)]);
+        Solution solution = workspace.CurrentSolution;
+        ProjectId projectId = ProjectId.CreateNewId(nameof(UnboundStackallocAnalyzer));
+        ProjectInfo projectInfo = ProjectInfo.Create(
+            projectId,
+            VersionStamp.Create(),
+            nameof(UnboundStackallocAnalyzer),
+            nameof(UnboundStackallocAnalyzer),
+            LanguageNames.CSharp
+        );
 
+        solution = solution.AddProject(projectInfo);
         string[] allCsFiles = Directory
             .EnumerateFiles(folder, "*.cs", SearchOption.AllDirectories)
             .Where(csFilePredicate)
             .ToArray();
-
-        await Parallel.ForEachAsync(allCsFiles, token, async (file, _) =>
+        foreach (var file in allCsFiles)
         {
-            Document doc = proj.AddDocument(file, SourceText.From(await File.ReadAllTextAsync(file, token)));
-            Compilation? compilation = await doc.Project.GetCompilationAsync(token);
-            SyntaxNode? root = await doc.GetSyntaxRootAsync(token);
-            await AnalyzeDocument(compilation!, root!);
-        });
+            SourceText src = SourceText.From(await File.ReadAllTextAsync(file, token));
+            solution = solution.AddDocument(DocumentId.CreateNewId(projectId), file, src);
+        }
+
+        workspace.TryApplyChanges(solution);
+        Project project = workspace.CurrentSolution.GetProject(projectId)!;
+        Compilation compilation = (await project.GetCompilationAsync(token))!;
+        foreach (Document document in project.Documents)
+        {
+            SyntaxNode? syntaxRoot = await document.GetSyntaxRootAsync(token);
+            if (syntaxRoot is not null)
+                await AnalyzeDocument(compilation, syntaxRoot);
+        }
     }
+
+    private static bool IsConstExpressionSyntax(Compilation comp, ExpressionSyntax expr)
+    {
+        // Immediately return true if the expression is a literal or sizeof expression
+        if (expr is LiteralExpressionSyntax or SizeOfExpressionSyntax or OmittedArraySizeExpressionSyntax)
+            return true;
+
+        if (expr is MemberAccessExpressionSyntax member)
+        {
+            // IntPtr.Size
+            if (member is { Expression: IdentifierNameSyntax { Identifier.Text: "IntPtr" }, Name.Identifier.Text: "Size" }) 
+                return true;
+        }
+
+        // Is it some named constant?
+        SemanticModel model = comp.GetSemanticModel(expr.SyntaxTree);
+        ISymbol? symbol = model.GetSymbolInfo(expr).Symbol;
+        if (symbol
+            is IFieldSymbol { IsConst: true }
+            or ILocalSymbol { IsConst: true })
+        {
+            return true;
+        }
+
+        // Binary expression with const operands?
+        if (expr is BinaryExpressionSyntax binExpr)
+        {
+            return IsConstExpressionSyntax(comp, binExpr.Left) && 
+                   IsConstExpressionSyntax(comp, binExpr.Right);
+        }
+        return false;
+    }
+
+    private static int _counter;
 
     private static async Task AnalyzeDocument(Compilation comp, SyntaxNode root)
     {
@@ -33,45 +83,40 @@ public static class UnboundStackallocAnalyzer
         {
             if (node is StackAllocArrayCreationExpressionSyntax stackAlloc)
             {
-                // get its ArrayRankSpecifier
                 if (stackAlloc.Type is ArrayTypeSyntax ats)
                 {
-                    // get its rank
                     Debug.Assert(ats.RankSpecifiers.Count == 1);
-                    ExpressionSyntax rank = ats.RankSpecifiers[0].Sizes[0];
-
-                    switch (rank)
+                    if (IsConstExpressionSyntax(comp, ats.RankSpecifiers[0].Sizes[0]))
                     {
-                        case LiteralExpressionSyntax:
-                            // A constant - nothing to do
-                            // TODO: complain if it's too large
-                            continue;
-
-                        case IdentifierNameSyntax ins:
-                        {
-                            SemanticModel model = comp.GetSemanticModel(rank.SyntaxTree);
-                            ISymbol? symbol = model.GetSymbolInfo(ins).Symbol;
-                            if (symbol is IFieldSymbol { IsConst: true })
-                            {
-                                // A named constant - nothing to do
-                                // TODO: complain if it's too large
-                                continue;
-                            }
-
-                            break;
-                        }
+                        // A constant - nothing to do
+                        continue;
                     }
                 }
                 else
-                {
                     throw new Exception("Unexpected stackalloc type: " + stackAlloc.Type);
-                }
 
-                var loc = stackAlloc.GetLocation();
+                Location loc = stackAlloc.GetLocation();
                 // file name, line number, column number
-                Console.WriteLine($"{loc.SourceTree?.FilePath}({loc.GetLineSpan().StartLinePosition.Line + 1},{loc.GetLineSpan().StartLinePosition.Character + 1}):");
-                Console.WriteLine($"\t{stackAlloc}\n\n");
+                WriteLine($"{Interlocked.Increment(ref _counter)}) {loc.SourceTree?.FilePath}({loc.GetLineSpan().StartLinePosition.Line + 1},{loc.GetLineSpan().StartLinePosition.Character + 1}):");
+                WriteLine($"\t{stackAlloc}\n\n");
             }
+        }
+    }
+
+    private static readonly object SyncObj = new();
+    private static bool _firstWrite = true;
+
+    private static void WriteLine(string str)
+    {
+        lock (SyncObj)
+        {
+            if (_firstWrite)
+            {
+                _firstWrite = false;
+                File.WriteAllText(ReportFile, "");
+            }
+            File.AppendAllText(ReportFile, str + "\n");
+            Console.WriteLine(str);
         }
     }
 }
