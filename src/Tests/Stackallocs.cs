@@ -4,7 +4,7 @@ internal unsafe class Stackallocs
 {
     void ConstStackalloc(int len)
     {
-        int* b = stackalloc int[len];
+        int* b = stackalloc int[128];
         Consume(b);
     }
 
@@ -13,6 +13,12 @@ internal unsafe class Stackallocs
     void NamedConstStackalloc(int len)
     {
         int* b = stackalloc int[N];
+        Consume(b);
+    }
+
+    void NamedConstStackalloc2(int len)
+    {
+        int* b = stackalloc int[Constants.ConstSize];
         Consume(b);
     }
 
